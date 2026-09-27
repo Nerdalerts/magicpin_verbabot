@@ -17,36 +17,6 @@ Author: magicpin AI Challenge Team
 """
 
 import os
-from dotenv import load_dotenv
-
-load_dotenv()
-
-# =============================================================================
-# ██████  CONFIGURATION - EDIT THIS SECTION ██████
-# =============================================================================
-
-# Your bot's URL (where your bot is running)
-BOT_URL = os.getenv("BOT_URL", "http://localhost:8080")
-
-# Choose your LLM provider: "openai", "anthropic", "gemini", "deepseek", "groq", "ollama", "openrouter"
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini")
-
-LLM_API_KEY = os.getenv("LLM_API_KEY", os.getenv("GEMINI_API_KEY", ""))
-
-# Model to use (leave empty for default, or specify like "gpt-4o", "claude-3-5-sonnet-20241022", etc.)
-LLM_MODEL = os.getenv("LLM_MODEL", "gemini-3.1-flash-lite")
-
-# For Ollama only: local server URL
-OLLAMA_URL = "http://localhost:11434"
-
-# Which test to run by default
-TEST_SCENARIO = os.getenv("TEST_SCENARIO", "all")
-
-# =============================================================================
-# ██████  END OF CONFIGURATION - DON'T EDIT BELOW THIS LINE ██████
-# =============================================================================
-
-import os
 import sys
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -54,6 +24,62 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
+# Securely load environment variables from .env file for publishing & security best practices
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # Minimal fallback parser if python-dotenv is not installed
+    env_file = os.path.join(os.path.dirname(__file__), ".env")
+    if os.path.exists(env_file):
+        with open(env_file, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    k, v = k.strip(), v.strip().strip("'\"")
+                    if k and k not in os.environ:
+                        os.environ[k] = v
+
+# =============================================================================
+# ██████  CONFIGURATION - EDIT THIS SECTION ██████
+# =============================================================================
+
+# Your bot's URL (where your bot is running)
+BOT_URL = os.environ.get("BOT_URL", "http://localhost:8080")
+
+# Choose your LLM provider: "openai", "anthropic", "gemini", "deepseek", "groq", "ollama", "openrouter"
+LLM_PROVIDER = os.environ.get("LLM_PROVIDER") or (
+    "gemini" if os.environ.get("GEMINI_API_KEY") else "openai"
+)
+
+# Your API key (paste your key here or keep in .env for publishing security)
+LLM_API_KEY = (
+    os.environ.get("LLM_API_KEY")
+    or os.environ.get("GEMINI_API_KEY")
+    or os.environ.get("OPENAI_API_KEY")
+    or os.environ.get("ANTHROPIC_API_KEY")
+    or os.environ.get("DEEPSEEK_API_KEY")
+    or os.environ.get("GROQ_API_KEY")
+    or os.environ.get("OPENROUTER_API_KEY")
+    or ""
+)
+
+# Model to use (leave empty for default, or specify like "gpt-4o", "gemini-3.1-flash-lite", etc.)
+LLM_MODEL = os.environ.get("LLM_MODEL") or os.environ.get("GEMINI_MODEL") or ""
+
+# For Ollama only: local server URL
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
+
+# Which test to run by default
+TEST_SCENARIO = os.environ.get("TEST_SCENARIO", "all")
+
+# =============================================================================
+# ██████  END OF CONFIGURATION - DON'T EDIT BELOW THIS LINE ██████
+# =============================================================================
+
+import os
+import sys
 import json
 import time
 import re
@@ -219,7 +245,7 @@ class AnthropicProvider(LLMProvider):
 class GeminiProvider(LLMProvider):
     def __init__(self, api_key: str, model: str = ""):
         self.api_key = api_key
-        self.model = model or "gemini-1.5-flash"
+        self.model = model or os.environ.get("GEMINI_MODEL") or "gemini-3.1-flash-lite"
 
     def name(self) -> str:
         return f"Gemini ({self.model})"
@@ -233,17 +259,9 @@ class GeminiProvider(LLMProvider):
 
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent?key={self.api_key}"
         req = urlrequest.Request(url, data=body, headers={"Content-Type": "application/json"})
-        for attempt in range(4):
-            try:
-                resp = urlrequest.urlopen(req, timeout=TIMEOUT_LLM)
-                data = json.loads(resp.read().decode("utf-8"))
-                return data["candidates"][0]["content"]["parts"][0]["text"]
-            except urlerror.HTTPError as e:
-                if e.code in (429, 503) and attempt < 3:
-                    time.sleep(2 * (attempt + 1))
-                    continue
-                raise
-        raise RuntimeError("Gemini max retries exceeded")
+        resp = urlrequest.urlopen(req, timeout=TIMEOUT_LLM)
+        data = json.loads(resp.read().decode("utf-8"))
+        return data["candidates"][0]["content"]["parts"][0]["text"]
 
 
 class DeepSeekProvider(LLMProvider):
