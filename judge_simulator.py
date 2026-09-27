@@ -18,6 +18,9 @@ Author: magicpin AI Challenge Team
 
 import os
 import sys
+import warnings
+
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
