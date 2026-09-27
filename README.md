@@ -4,7 +4,7 @@
 **Email**: adarsh_23me020@dtu.ac.in  
 **Institution**: Delhi Technological University (DTU)  
 **Model**: `gemini-3.8-flash` via Google AI Studio  
-**Live Endpoint**: Configured for Render deployment (`/v1/*` HTTPS)
+**Live Endpoint**: Configured for Render deployment
 
 ---
 
